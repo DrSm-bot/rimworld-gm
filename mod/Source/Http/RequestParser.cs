@@ -1,28 +1,106 @@
 using System;
+using System.IO;
 using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace RimworldGM.Http
 {
-    /// <summary>
-    /// Minimal request parser for Phase 1 PR #2.
-    /// Focuses on route/method matching for /health.
-    /// </summary>
     public static class RequestParser
     {
-        public static bool IsHealthRequest(HttpListenerRequest request)
+        public static bool IsGet(HttpListenerRequest request, string path)
+        {
+            return IsMethodPath(request, "GET", path);
+        }
+
+        public static bool IsPost(HttpListenerRequest request, string path)
+        {
+            return IsMethodPath(request, "POST", path);
+        }
+
+        public static bool GetQueryBool(HttpListenerRequest request, string key, bool defaultValue)
+        {
+            if (request == null || request.QueryString == null)
+            {
+                return defaultValue;
+            }
+
+            var raw = request.QueryString[key];
+            if (string.IsNullOrEmpty(raw))
+            {
+                return defaultValue;
+            }
+
+            return raw == "1" || raw.Equals("true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string ReadBody(HttpListenerRequest request)
+        {
+            if (request == null || request.InputStream == null || !request.HasEntityBody)
+            {
+                return string.Empty;
+            }
+
+            using (var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
+            {
+                return reader.ReadToEnd() ?? string.Empty;
+            }
+        }
+
+        public static string ExtractJsonString(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key))
+            {
+                return null;
+            }
+
+            var pattern = "\"" + Regex.Escape(key) + "\"\\s*:\\s*\"(?<v>(?:\\\\.|[^\"])*)\"";
+            var match = Regex.Match(json, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success)
+            {
+                return null;
+            }
+
+            return Regex.Unescape(match.Groups["v"].Value);
+        }
+
+        public static int? ExtractJsonInt(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key))
+            {
+                return null;
+            }
+
+            var pattern = "\"" + Regex.Escape(key) + "\"\\s*:\\s*(?<v>-?[0-9]+)";
+            var match = Regex.Match(json, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success)
+            {
+                return null;
+            }
+
+            int value;
+            if (!int.TryParse(match.Groups["v"].Value, out value))
+            {
+                return null;
+            }
+
+            return value;
+        }
+
+        private static bool IsMethodPath(HttpListenerRequest request, string method, string path)
         {
             if (request == null)
             {
                 return false;
             }
 
-            if (!string.Equals(request.HttpMethod, "GET", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(request.HttpMethod, method, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
 
-            var path = request.Url != null ? request.Url.AbsolutePath : string.Empty;
-            return string.Equals(path, "/health", StringComparison.OrdinalIgnoreCase);
+            var actualPath = request.Url != null ? request.Url.AbsolutePath : string.Empty;
+            return string.Equals(actualPath, path, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
