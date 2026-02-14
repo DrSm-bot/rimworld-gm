@@ -16,12 +16,14 @@ namespace RimworldGM.Core
         public string RequestId;
         public GameCommandKind Kind;
         public Dictionary<string, string> Args;
+        public volatile bool Cancelled;
 
         public GameCommand(GameCommandKind kind, Dictionary<string, string> args)
         {
             RequestId = Guid.NewGuid().ToString("N");
             Kind = kind;
             Args = args ?? new Dictionary<string, string>();
+            Cancelled = false;
         }
     }
 }

@@ -27,6 +27,11 @@ namespace RimworldGM.Core
                     break;
                 }
 
+                if (command.Cancelled)
+                {
+                    continue;
+                }
+
                 var result = Execute(command);
                 CommandBus.Dispatcher.SetResult(command.RequestId, result);
             }

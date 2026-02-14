@@ -13,6 +13,7 @@ namespace RimworldGM.Core
         private class PendingEntry
         {
             public DateTime CreatedUtc;
+            public GameCommand Command;
             public CommandResult Result;
         }
 
@@ -33,6 +34,7 @@ namespace RimworldGM.Core
                 _pending[command.RequestId] = new PendingEntry
                 {
                     CreatedUtc = DateTime.UtcNow,
+                    Command = command,
                     Result = null
                 };
                 return command.RequestId;
@@ -101,6 +103,19 @@ namespace RimworldGM.Core
                 Thread.Sleep(10);
             }
 
+            lock (_sync)
+            {
+                PendingEntry entry;
+                if (_pending.TryGetValue(requestId, out entry))
+                {
+                    if (entry.Command != null)
+                    {
+                        entry.Command.Cancelled = true;
+                    }
+                    _pending.Remove(requestId);
+                }
+            }
+
             result = null;
             return false;
         }
@@ -116,6 +131,10 @@ namespace RimworldGM.Core
                 {
                     if (kv.Value.CreatedUtc < cutoff)
                     {
+                        if (kv.Value.Command != null)
+                        {
+                            kv.Value.Command.Cancelled = true;
+                        }
                         keysToRemove.Add(kv.Key);
                     }
                 }
