@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text;
 
 namespace RimworldGM.Util
@@ -51,7 +52,7 @@ namespace RimworldGM.Util
 
         public static string Number(long value)
         {
-            return value.ToString();
+            return value.ToString(CultureInfo.InvariantCulture);
         }
     }
 }
