@@ -120,6 +120,48 @@ curl -X POST http://localhost:18800/message \
   -d '{"text":"Test Message","type":"info"}'
 ```
 
+## 🧰 Handoff: Troubleshooting + Quick Ops
+
+### Troubleshooting
+- **`MOD_NOT_READY`**
+  - Rimworld is paused/loading or no active map yet.
+  - Resume game and wait a few seconds, then retry `/health` or `/state`.
+- **Tunnel issues (VM cannot reach Deck)**
+  - Reopen tunnel on VM: `ssh -N -L 18800:localhost:18800 deck@<deck-ip>`
+  - Verify Deck SSH works: `ssh deck@<deck-ip>`
+  - Check endpoint locally on VM: `curl http://localhost:18800/health`
+- **Build fails (`Missing dependency`)**
+  - Ensure these files exist in `lib/`:
+    - `Assembly-CSharp.dll`
+    - `UnityEngine.dll`
+    - `UnityEngine.CoreModule.dll`
+  - Re-run: `./scripts/build.sh`
+
+### Common Commands
+```bash
+# Build mod
+./scripts/build.sh
+
+# Open tunnel
+ssh -N -L 18800:localhost:18800 deck@<deck-ip>
+
+# Safe checks
+curl http://localhost:18800/health
+curl http://localhost:18800/state
+
+# Send test message
+curl -X POST http://localhost:18800/message \
+  -H "Content-Type: application/json" \
+  -d '{"text":"RimworldGM test","type":"info"}'
+```
+
+### "Läuft alles?" Schnellcheck
+- [ ] RimworldGM mod enabled on Deck
+- [ ] SSH tunnel open on VM
+- [ ] `curl /health` returns `status: ok`
+- [ ] `curl /state` returns colony payload
+- [ ] `/message` appears in-game
+
 ## 🛠️ Tech Stack
 
 | Component | Technology |
