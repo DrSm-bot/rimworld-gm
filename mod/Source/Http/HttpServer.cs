@@ -1,14 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading;
-using RimworldGM.Util;
+using RimworldGM.Core;
 using Verse;
 
 namespace RimworldGM.Http
 {
     /// <summary>
     /// Local HTTP server for Rimworld GM integration.
-    /// PR #2 scope: lifecycle + GET /health only.
+    /// PR #3 scope: route /health through command queue/main-thread pump.
     /// </summary>
     public class HttpServer
     {
@@ -128,17 +129,45 @@ namespace RimworldGM.Http
                     uptimeSeconds = 0;
                 }
 
-                var healthJson =
-                    "{" +
-                    "\"status\":" + Json.Quote("ok") + "," +
-                    "\"game_running\":" + Json.Bool(true) + "," +
-                    "\"colony_loaded\":" + Json.Bool(false) + "," +
-                    "\"mod_version\":" + Json.Quote(RimworldGM.VERSION) + "," +
-                    "\"queue_depth\":0," +
-                    "\"uptime_seconds\":" + Json.Number(uptimeSeconds) +
-                    "}";
+                var args = new Dictionary<string, string>();
+                args["uptime_seconds"] = uptimeSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-                HttpResponseWriter.WriteJson(context.Response, 200, healthJson);
+                var command = new GameCommand(GameCommandKind.Health, args);
+                var requestId = CommandBus.Dispatcher.Enqueue(command);
+
+                if (string.IsNullOrEmpty(requestId))
+                {
+                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Command dispatcher unavailable");
+                    return;
+                }
+
+                CommandResult result;
+                if (!CommandBus.Dispatcher.WaitForResult(requestId, 2500, out result))
+                {
+                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Main-thread processor not ready");
+                    return;
+                }
+
+                if (result == null)
+                {
+                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "No command result produced");
+                    return;
+                }
+
+                if (!result.Success)
+                {
+                    HttpResponseWriter.WriteApiError(context.Response, 503, result.Error ?? "MOD_NOT_READY", "Health command failed");
+                    return;
+                }
+
+                var json = result.Data as string;
+                if (string.IsNullOrEmpty(json))
+                {
+                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Invalid health payload");
+                    return;
+                }
+
+                HttpResponseWriter.WriteJson(context.Response, 200, json);
                 return;
             }
 
