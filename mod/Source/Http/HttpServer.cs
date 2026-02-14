@@ -161,7 +161,17 @@ namespace RimworldGM.Http
 
             if (RequestParser.IsPost(request, "/event"))
             {
-                var body = RequestParser.ReadBody(request);
+                string body;
+                try
+                {
+                    body = RequestParser.ReadBody(request, _settings.Security.MaxRequestBodyBytes);
+                }
+                catch (InvalidOperationException)
+                {
+                    HttpResponseWriter.WriteApiError(context.Response, 400, "INVALID_REQUEST", "Request body too large");
+                    return;
+                }
+
                 var eventType = RequestParser.ExtractJsonString(body, "event_type");
                 if (string.IsNullOrEmpty(eventType))
                 {
@@ -181,7 +191,17 @@ namespace RimworldGM.Http
 
             if (RequestParser.IsPost(request, "/message"))
             {
-                var body = RequestParser.ReadBody(request);
+                string body;
+                try
+                {
+                    body = RequestParser.ReadBody(request, _settings.Security.MaxRequestBodyBytes);
+                }
+                catch (InvalidOperationException)
+                {
+                    HttpResponseWriter.WriteApiError(context.Response, 400, "INVALID_REQUEST", "Request body too large");
+                    return;
+                }
+
                 var text = RequestParser.ExtractJsonString(body, "text");
                 if (string.IsNullOrEmpty(text))
                 {

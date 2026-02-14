@@ -89,10 +89,13 @@ namespace RimworldGM.Config
                 s.Network.BindAddress = "127.0.0.1";
             }
 
+            // v1 hard rule: token is always required for LAN mode.
+            s.Security.RequireTokenForLan = true;
+
             var isLan = !(s.Network.BindAddress == "127.0.0.1" || s.Network.BindAddress == "localhost");
             if (isLan)
             {
-                var invalid = !s.Network.AllowLan || (s.Security.RequireTokenForLan && string.IsNullOrEmpty(s.Network.AuthToken));
+                var invalid = !s.Network.AllowLan || string.IsNullOrEmpty(s.Network.AuthToken);
                 if (invalid)
                 {
                     Log.Warning("[RimworldGM] LAN mode requested but invalid config; falling back to localhost.");
