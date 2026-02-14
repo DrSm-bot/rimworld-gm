@@ -154,6 +154,7 @@ Advanced features that make the integration actually fun.
 | 2026-02-14 | Start with Skill, then MCP | Fast MVP, then polish |
 | 2026-02-14 | Local HTTP only | Security, simplicity |
 | 2026-02-14 | Rimworld first, ONI later | Better modding ecosystem |
+| 2026-02-14 | Public branding: Shellmaster, storyteller persona: Lord Pincer | Distinct identity + OpenClaw nod |
 
 ---
 

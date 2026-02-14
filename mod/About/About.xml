@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>Rimworld Game Master</name>
+  <name>Shellmaster</name>
   <author>Clawd &amp; DrSm</author>
   <packageId>clawd.rimworldgm</packageId>
   <supportedVersions>
@@ -8,9 +8,13 @@
     <li>1.5</li>
   </supportedVersions>
   <description>
-AI-powered Game Master integration for Rimworld.
+Shellmaster — AI-powered Game Master integration for Rimworld.
 
-Allows external AI agents to observe your colony and trigger events via MCP (Model Context Protocol).
+Tagline: Your Colony, Under The Claw.
+
+Narration persona: Lord Pincer.
+
+Allows external AI agents to observe your colony and trigger events via HTTP API and MCP (Model Context Protocol).
 
 Features:
 - Colony state API
