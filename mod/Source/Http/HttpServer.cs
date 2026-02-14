@@ -2,25 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
+using RimworldGM.Config;
 using RimworldGM.Core;
+using RimworldGM.Util;
 using Verse;
 
 namespace RimworldGM.Http
 {
-    /// <summary>
-    /// Local HTTP server for Rimworld GM integration.
-    /// </summary>
     public class HttpServer
     {
-        private readonly int _port;
+        private readonly RimworldGMSettings _settings;
+        private readonly RateLimiter _rateLimiter = new RateLimiter();
         private HttpListener _listener;
         private Thread _listenerThread;
         private volatile bool _running;
         private DateTime _startedAtUtc;
 
-        public HttpServer(int port)
+        public HttpServer(RimworldGMSettings settings)
         {
-            _port = port;
+            _settings = settings ?? new RimworldGMSettings();
         }
 
         public void Start()
@@ -31,7 +31,8 @@ namespace RimworldGM.Http
             }
 
             _listener = new HttpListener();
-            _listener.Prefixes.Add("http://localhost:" + _port + "/");
+            var host = _settings.Network.BindAddress == "0.0.0.0" ? "+" : _settings.Network.BindAddress;
+            _listener.Prefixes.Add("http://" + host + ":" + _settings.Network.Port + "/");
             _listener.Start();
 
             _startedAtUtc = DateTime.UtcNow;
@@ -122,6 +123,25 @@ namespace RimworldGM.Http
         {
             var request = context.Request;
 
+            if (!_rateLimiter.TryEnter("global", _settings.Security.MaxRequestsPerMinute))
+            {
+                HttpResponseWriter.WriteApiError(context.Response, 429, "RATE_LIMITED", "Too many requests");
+                return;
+            }
+
+            if (RequiresAuth(request) && !IsAuthorized(request))
+            {
+                HttpResponseWriter.WriteApiError(context.Response, 401, "UNAUTHORIZED", "Missing or invalid token");
+                return;
+            }
+
+            if ((RequestParser.IsPost(request, "/event") || RequestParser.IsPost(request, "/message"))
+                && request.ContentLength64 > _settings.Security.MaxRequestBodyBytes)
+            {
+                HttpResponseWriter.WriteApiError(context.Response, 400, "INVALID_REQUEST", "Request body too large");
+                return;
+            }
+
             if (RequestParser.IsGet(request, "/health"))
             {
                 var args = new Dictionary<string, string>();
@@ -181,6 +201,34 @@ namespace RimworldGM.Http
             HttpResponseWriter.WriteNotFound(context.Response);
         }
 
+        private bool RequiresAuth(HttpListenerRequest request)
+        {
+            return _settings.IsLanMode;
+        }
+
+        private bool IsAuthorized(HttpListenerRequest request)
+        {
+            if (string.IsNullOrEmpty(_settings.Network.AuthToken))
+            {
+                return false;
+            }
+
+            var auth = request.Headers["Authorization"];
+            if (!string.IsNullOrEmpty(auth) && auth.StartsWith("Bearer "))
+            {
+                var token = auth.Substring("Bearer ".Length).Trim();
+                return token == _settings.Network.AuthToken;
+            }
+
+            var legacyToken = request.Headers["X-RimworldGM-Token"];
+            if (!string.IsNullOrEmpty(legacyToken))
+            {
+                return legacyToken == _settings.Network.AuthToken;
+            }
+
+            return false;
+        }
+
         private void DispatchCommand(HttpListenerContext context, GameCommand command)
         {
             var requestId = CommandBus.Dispatcher.Enqueue(command);
@@ -229,11 +277,14 @@ namespace RimworldGM.Http
 
             switch (error)
             {
+                case "UNAUTHORIZED":
+                    return 401;
                 case "INVALID_REQUEST":
                 case "INVALID_EVENT":
                     return 400;
                 case "NO_COLONY_LOADED":
                 case "EVENT_FAILED":
+                case "EVENT_BLOCKED":
                     return 409;
                 case "RATE_LIMITED":
                 case "COOLDOWN_ACTIVE":

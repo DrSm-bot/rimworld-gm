@@ -120,6 +120,25 @@ curl -X POST http://localhost:18800/message \
   -d '{"text":"Test Message","type":"info"}'
 ```
 
+## 🌐 LAN Mode (Phase 3a)
+
+By default the mod binds to localhost (`127.0.0.1`) for safety.
+
+To enable LAN access, edit `mod/Config/Settings.xml`:
+
+- set `<bindAddress>0.0.0.0</bindAddress>`
+- set `<allowLan>true</allowLan>`
+- set a strong `<authToken>...</authToken>`
+
+Use header auth in LAN mode:
+
+```bash
+curl http://<deck-ip>:18800/health \
+  -H "Authorization: Bearer <token>"
+```
+
+⚠️ Security: LAN mode opens control API access to your network. Only use on trusted networks and keep your token secret.
+
 ## 🧰 Handoff: Troubleshooting + Quick Ops
 
 ### Troubleshooting

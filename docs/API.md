@@ -15,6 +15,8 @@ The mod exposes a local HTTP server on `http://localhost:18800`.
 
 ### Headers
 - `Content-Type: application/json` for all `POST` requests.
+- `Authorization: Bearer <token>` required in LAN mode.
+- Legacy LAN token header (also accepted): `X-RimworldGM-Token: <token>`.
 
 ### Error Envelope
 All endpoint errors return:
@@ -30,6 +32,7 @@ All endpoint errors return:
 ### HTTP Status Policy
 - `200 OK` — success
 - `400 Bad Request` — invalid payload/params
+- `401 Unauthorized` — missing/invalid token in LAN mode
 - `409 Conflict` — valid request but impossible in current game state
 - `429 Too Many Requests` — cooldown/rate limit active
 - `503 Service Unavailable` — game/mod not ready
@@ -164,6 +167,7 @@ Return current colony state.
 | Condition | HTTP | `error` |
 |-----------|------|---------|
 | No colony/map loaded | 409 | `NO_COLONY_LOADED` |
+| Missing/invalid LAN token | 401 | `UNAUTHORIZED` |
 | Game process unavailable | 503 | `GAME_NOT_RUNNING` |
 
 ---
@@ -248,8 +252,10 @@ Queue and trigger a game event.
 |-----------|------|---------|
 | Missing/invalid JSON body | 400 | `INVALID_REQUEST` |
 | Unknown event type | 400 | `INVALID_EVENT` |
+| Dangerous event blocked by policy | 409 | `EVENT_BLOCKED` |
 | Event blocked by cooldown | 429 | `RATE_LIMITED` |
 | Colony not in valid state for event | 409 | `EVENT_FAILED` |
+| Missing/invalid LAN token | 401 | `UNAUTHORIZED` |
 | Game unavailable | 503 | `GAME_NOT_RUNNING` |
 
 ---
@@ -298,6 +304,7 @@ Display a message in-game.
 |-----------|------|---------|
 | Missing or empty `text` | 400 | `INVALID_REQUEST` |
 | No colony loaded | 409 | `NO_COLONY_LOADED` |
+| Missing/invalid LAN token | 401 | `UNAUTHORIZED` |
 | Game unavailable | 503 | `GAME_NOT_RUNNING` |
 
 ---
@@ -324,5 +331,7 @@ Send an in-game message.
 - `NO_COLONY_LOADED` — No save game loaded / no active map
 - `INVALID_REQUEST` — Payload validation failed
 - `INVALID_EVENT` — Unknown or unsupported event type
+- `EVENT_BLOCKED` — Event blocked by safety policy
 - `EVENT_FAILED` — Event could not execute in current game conditions
+- `UNAUTHORIZED` — Missing or invalid token in LAN mode
 - `RATE_LIMITED` — Cooldown active / too many requests

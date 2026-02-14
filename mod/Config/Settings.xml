@@ -1,0 +1,21 @@
+<RimworldGMSettings>
+  <network>
+    <bindAddress>127.0.0.1</bindAddress>
+    <port>18800</port>
+    <authToken></authToken>
+    <allowedCidrs></allowedCidrs>
+    <allowLan>false</allowLan>
+  </network>
+
+  <security>
+    <requireTokenForLan>true</requireTokenForLan>
+    <maxRequestsPerMinute>60</maxRequestsPerMinute>
+    <maxRequestBodyBytes>16384</maxRequestBodyBytes>
+    <enableDangerousEvents>false</enableDangerousEvents>
+  </security>
+
+  <ui>
+    <showLanWarningOnce>true</showLanWarningOnce>
+    <showStartupSummary>true</showStartupSummary>
+  </ui>
+</RimworldGMSettings>
