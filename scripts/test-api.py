@@ -44,6 +44,9 @@ def http_call(method: str, url: str, body: dict | None = None) -> tuple[int, dic
         except Exception:
             pass
         return e.code, payload
+    except error.URLError:
+        # Transport-level failure (connection refused, DNS, timeout, etc.)
+        return -1, {}
 
 
 class MockHandler(BaseHTTPRequestHandler):
@@ -132,7 +135,10 @@ def run_tests(base_url: str) -> list[TestResult]:
     check("event happy", status == 200 and body.get("success") is True, f"status={status}, body={body}")
 
     status, body = http_call("POST", f"{base_url}/event", {"event_type": "invalid_event"})
-    check("event error path", status == 400 and body.get("error") in {"INVALID_EVENT", "INVALID_REQUEST"}, f"status={status}, body={body}")
+    check("event invalid_event path", status == 400 and body.get("error") == "INVALID_EVENT", f"status={status}, body={body}")
+
+    status, body = http_call("POST", f"{base_url}/event", {})
+    check("event malformed payload path", status == 400 and body.get("error") == "INVALID_REQUEST", f"status={status}, body={body}")
 
     status, body = http_call("POST", f"{base_url}/message", {"text": "Hello colony", "type": "info", "duration": 5})
     check("message happy", status == 200 and body.get("success") is True, f"status={status}, body={body}")
