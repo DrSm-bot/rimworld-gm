@@ -1,0 +1,148 @@
+using System;
+using System.Net;
+using System.Threading;
+using RimworldGM.Util;
+using Verse;
+
+namespace RimworldGM.Http
+{
+    /// <summary>
+    /// Local HTTP server for Rimworld GM integration.
+    /// PR #2 scope: lifecycle + GET /health only.
+    /// </summary>
+    public class HttpServer
+    {
+        private readonly int _port;
+        private HttpListener _listener;
+        private Thread _listenerThread;
+        private volatile bool _running;
+        private DateTime _startedAtUtc;
+
+        public HttpServer(int port)
+        {
+            _port = port;
+        }
+
+        public void Start()
+        {
+            if (_running)
+            {
+                return;
+            }
+
+            _listener = new HttpListener();
+            _listener.Prefixes.Add("http://localhost:" + _port + "/");
+            _listener.Start();
+
+            _startedAtUtc = DateTime.UtcNow;
+            _running = true;
+
+            _listenerThread = new Thread(ListenLoop);
+            _listenerThread.Name = "RimworldGM.HttpListener";
+            _listenerThread.IsBackground = true;
+            _listenerThread.Start();
+        }
+
+        public void Stop()
+        {
+            _running = false;
+
+            try
+            {
+                if (_listener != null && _listener.IsListening)
+                {
+                    _listener.Stop();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[RimworldGM] HTTP stop warning: " + ex.Message);
+            }
+
+            try
+            {
+                if (_listener != null)
+                {
+                    _listener.Close();
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            _listener = null;
+        }
+
+        private void ListenLoop()
+        {
+            while (_running)
+            {
+                HttpListenerContext context = null;
+                try
+                {
+                    if (_listener == null || !_listener.IsListening)
+                    {
+                        Thread.Sleep(25);
+                        continue;
+                    }
+
+                    context = _listener.GetContext();
+                    HandleRequest(context);
+                }
+                catch (HttpListenerException)
+                {
+                    if (_running)
+                    {
+                        Log.Warning("[RimworldGM] HTTP listener interrupted while running.");
+                    }
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("[RimworldGM] HTTP loop error: " + ex);
+                    if (context != null)
+                    {
+                        try
+                        {
+                            HttpResponseWriter.WriteServerError(context.Response);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                }
+            }
+        }
+
+        private void HandleRequest(HttpListenerContext context)
+        {
+            if (RequestParser.IsHealthRequest(context.Request))
+            {
+                var uptimeSeconds = (long)(DateTime.UtcNow - _startedAtUtc).TotalSeconds;
+                if (uptimeSeconds < 0)
+                {
+                    uptimeSeconds = 0;
+                }
+
+                var healthJson =
+                    "{" +
+                    "\"status\":" + Json.Quote("ok") + "," +
+                    "\"game_running\":" + Json.Bool(true) + "," +
+                    "\"colony_loaded\":" + Json.Bool(false) + "," +
+                    "\"mod_version\":" + Json.Quote(RimworldGM.VERSION) + "," +
+                    "\"queue_depth\":0," +
+                    "\"uptime_seconds\":" + Json.Number(uptimeSeconds) +
+                    "}";
+
+                HttpResponseWriter.WriteJson(context.Response, 200, healthJson);
+                return;
+            }
+
+            HttpResponseWriter.WriteNotFound(context.Response);
+        }
+    }
+}
