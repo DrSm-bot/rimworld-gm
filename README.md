@@ -84,6 +84,8 @@ The bridge that:
 
 ## ⚡ Quick Start (Steam Deck + VM)
 
+> Note: SSH tunnel is optional now. For LAN mode, connect directly to `http://<deck-ip>:18800` with token auth.
+
 ### 1) Build mod on VM
 
 ```bash
@@ -104,10 +106,17 @@ Copy mod folder to Rimworld mods path on Deck:
 ~/.local/share/Steam/steamapps/common/RimWorld/Mods/RimworldGM/
 ```
 
-### 3) Enable tunnel (VM -> Deck)
+### 3) Connect mode
 
+**Option A (legacy): SSH tunnel**
 ```bash
 ssh -N -L 18800:localhost:18800 deck@<deck-ip>
+```
+
+**Option B (Phase 3a): Direct LAN + token**
+```bash
+# in mod Settings.xml:
+# bindAddress=0.0.0.0, allowLan=true, authToken=<token>
 ```
 
 ### 4) Test endpoints (safe path)

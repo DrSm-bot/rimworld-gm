@@ -85,13 +85,21 @@ Quick integration via shell commands for rapid testing.
 
 ---
 
-## Phase 3: MCP Server (Production)
-*Status: Not Started*
+## Phase 3: Network Hardening + MCP (Production)
+*Status: In Progress (3a complete, 3b pending)*
 *Estimate: 2 days*
 
-Universal integration via Model Context Protocol.
+Universal integration via Model Context Protocol plus secure LAN operation.
 
-### 3.1 MCP Implementation
+### 3a LAN Mode Security (Complete ✅)
+- [x] Configurable bind address + port
+- [x] LAN mode explicit opt-in (`allowLan=true`)
+- [x] Token auth in LAN mode (`Authorization: Bearer`)
+- [x] Global rate limiting
+- [x] Request body size limit
+- [x] Dangerous event blocking policy
+
+### 3.1 MCP Implementation (3b)
 - [ ] Finalize tool schemas
 - [ ] Implement tool handlers
 - [ ] Add error handling (game offline, etc.)
