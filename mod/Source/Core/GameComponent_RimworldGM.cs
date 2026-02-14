@@ -1,5 +1,6 @@
 using RimworldGM.Handlers;
 using RimworldGM.Util;
+using RimWorld;
 using Verse;
 
 namespace RimworldGM.Core
@@ -12,8 +13,9 @@ namespace RimworldGM.Core
         private const int MaxCommandsPerTick = 10;
 
         public GameComponent_RimworldGM(Game game)
-            : base(game)
         {
+            // Note: Base class constructor signature varies by Rimworld version
+            // Parameterless for compatibility
         }
 
         public override void GameComponentTick()
