@@ -9,7 +9,6 @@ namespace RimworldGM.Http
 {
     /// <summary>
     /// Local HTTP server for Rimworld GM integration.
-    /// PR #3 scope: route /health through command queue/main-thread pump.
     /// </summary>
     public class HttpServer
     {
@@ -67,7 +66,7 @@ namespace RimworldGM.Http
                     _listener.Close();
                 }
             }
-            catch (Exception)
+            catch
             {
             }
 
@@ -111,7 +110,7 @@ namespace RimworldGM.Http
                         {
                             HttpResponseWriter.WriteServerError(context.Response);
                         }
-                        catch (Exception)
+                        catch
                         {
                         }
                     }
@@ -121,57 +120,136 @@ namespace RimworldGM.Http
 
         private void HandleRequest(HttpListenerContext context)
         {
-            if (RequestParser.IsHealthRequest(context.Request))
+            var request = context.Request;
+
+            if (RequestParser.IsGet(request, "/health"))
             {
-                var uptimeSeconds = (long)(DateTime.UtcNow - _startedAtUtc).TotalSeconds;
-                if (uptimeSeconds < 0)
-                {
-                    uptimeSeconds = 0;
-                }
-
                 var args = new Dictionary<string, string>();
-                args["uptime_seconds"] = uptimeSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                args["uptime_seconds"] = UptimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+                DispatchCommand(context, new GameCommand(GameCommandKind.Health, args));
+                return;
+            }
 
-                var command = new GameCommand(GameCommandKind.Health, args);
-                var requestId = CommandBus.Dispatcher.Enqueue(command);
+            if (RequestParser.IsGet(request, "/state"))
+            {
+                var args = new Dictionary<string, string>();
+                args["include_colonists"] = RequestParser.GetQueryBool(request, "include_colonists", true) ? "true" : "false";
+                args["include_resources"] = RequestParser.GetQueryBool(request, "include_resources", true) ? "true" : "false";
+                DispatchCommand(context, new GameCommand(GameCommandKind.State, args));
+                return;
+            }
 
-                if (string.IsNullOrEmpty(requestId))
+            if (RequestParser.IsPost(request, "/event"))
+            {
+                var body = RequestParser.ReadBody(request);
+                var eventType = RequestParser.ExtractJsonString(body, "event_type");
+                if (string.IsNullOrEmpty(eventType))
                 {
-                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Command dispatcher unavailable");
+                    HttpResponseWriter.WriteApiError(context.Response, 400, "INVALID_REQUEST", "event_type is required");
                     return;
                 }
 
-                CommandResult result;
-                if (!CommandBus.Dispatcher.WaitForResult(requestId, 2500, out result))
+                var points = RequestParser.ExtractJsonInt(body, "points") ?? 500;
+                var args = new Dictionary<string, string>();
+                args["event_type"] = eventType;
+                args["points"] = points.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                args["event_id"] = Guid.NewGuid().ToString("N");
+
+                DispatchCommand(context, new GameCommand(GameCommandKind.Event, args));
+                return;
+            }
+
+            if (RequestParser.IsPost(request, "/message"))
+            {
+                var body = RequestParser.ReadBody(request);
+                var text = RequestParser.ExtractJsonString(body, "text");
+                if (string.IsNullOrEmpty(text))
                 {
-                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Main-thread processor not ready");
+                    HttpResponseWriter.WriteApiError(context.Response, 400, "INVALID_REQUEST", "text is required");
                     return;
                 }
 
-                if (result == null)
-                {
-                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "No command result produced");
-                    return;
-                }
+                var style = RequestParser.ExtractJsonString(body, "type") ?? "info";
+                var args = new Dictionary<string, string>();
+                args["text"] = text;
+                args["type"] = style;
 
-                if (!result.Success)
-                {
-                    HttpResponseWriter.WriteApiError(context.Response, 503, result.Error ?? "MOD_NOT_READY", "Health command failed");
-                    return;
-                }
-
-                var json = result.Data as string;
-                if (string.IsNullOrEmpty(json))
-                {
-                    HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Invalid health payload");
-                    return;
-                }
-
-                HttpResponseWriter.WriteJson(context.Response, 200, json);
+                DispatchCommand(context, new GameCommand(GameCommandKind.Message, args));
                 return;
             }
 
             HttpResponseWriter.WriteNotFound(context.Response);
+        }
+
+        private void DispatchCommand(HttpListenerContext context, GameCommand command)
+        {
+            var requestId = CommandBus.Dispatcher.Enqueue(command);
+            if (string.IsNullOrEmpty(requestId))
+            {
+                HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Command dispatcher unavailable");
+                return;
+            }
+
+            CommandResult result;
+            if (!CommandBus.Dispatcher.WaitForResult(requestId, 2500, out result))
+            {
+                HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Main-thread processor not ready");
+                return;
+            }
+
+            if (result == null)
+            {
+                HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "No command result produced");
+                return;
+            }
+
+            if (!result.Success)
+            {
+                var status = ErrorToStatus(result.Error);
+                HttpResponseWriter.WriteApiError(context.Response, status, result.Error ?? "EVENT_FAILED", "Command failed");
+                return;
+            }
+
+            var json = result.Data as string;
+            if (string.IsNullOrEmpty(json))
+            {
+                HttpResponseWriter.WriteApiError(context.Response, 503, "MOD_NOT_READY", "Invalid command payload");
+                return;
+            }
+
+            HttpResponseWriter.WriteJson(context.Response, 200, json);
+        }
+
+        private int ErrorToStatus(string error)
+        {
+            if (string.IsNullOrEmpty(error))
+            {
+                return 409;
+            }
+
+            switch (error)
+            {
+                case "INVALID_REQUEST":
+                case "INVALID_EVENT":
+                    return 400;
+                case "NO_COLONY_LOADED":
+                case "EVENT_FAILED":
+                    return 409;
+                case "RATE_LIMITED":
+                case "COOLDOWN_ACTIVE":
+                    return 429;
+                case "GAME_NOT_RUNNING":
+                case "MOD_NOT_READY":
+                    return 503;
+                default:
+                    return 409;
+            }
+        }
+
+        private long UptimeSeconds()
+        {
+            var uptime = (long)(DateTime.UtcNow - _startedAtUtc).TotalSeconds;
+            return uptime < 0 ? 0 : uptime;
         }
     }
 }
