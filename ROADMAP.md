@@ -27,31 +27,31 @@
 ---
 
 ## Phase 1: Rimworld Mod
-*Status: In Preparation*
+*Status: Complete (Ready for Integration Testing)*
 *Estimate: 2-3 days implementation + 1 day integration testing*
 
 The game-side component that exposes colony data and accepts commands.
 
 ### 1.1 HTTP Server + Dispatch
-- [ ] Implement `HttpListener` on port 18800
-- [ ] Parse and validate request payloads
-- [ ] Queue commands for main-thread execution (`CommandDispatcher`)
-- [ ] Graceful startup/shutdown
+- [x] Implement `HttpListener` on port 18800
+- [x] Parse and validate request payloads
+- [x] Queue commands for main-thread execution (`CommandDispatcher`)
+- [x] Graceful startup/shutdown
 
 ### 1.2 Endpoints
-- [ ] `GET /health` — Health check + queue stats
-- [ ] `GET /state` — Colony status (colonists, resources, threats)
-- [ ] `POST /event` — Trigger incidents
-- [ ] `POST /message` — Display in-game messages
+- [x] `GET /health` — Health check + queue stats
+- [x] `GET /state` — Colony status (colonists, resources, threats)
+- [x] `POST /event` — Trigger incidents
+- [x] `POST /message` — Display in-game messages
 
 ### 1.3 Event System
-- [ ] Map event types to `IncidentDef`
-- [ ] Implement intensity → points calculation
-- [ ] Handle event failures gracefully
-- [ ] Add cooldowns to prevent spam
+- [x] Map event types to `IncidentDef`
+- [x] Implement intensity → points calculation
+- [x] Handle event failures gracefully
+- [x] Add cooldowns to prevent spam
 
 ### 1.4 Testing
-- [ ] Run `scripts/test-api.py --mock`
+- [x] Run `scripts/test-api.py --mock`
 - [ ] Run `scripts/test-api.py --base-url http://localhost:18800`
 - [ ] Verify thread safety under repeated event calls
 - [ ] Test during gameplay (main menu, active colony, pause/speed changes)
@@ -180,4 +180,4 @@ Week 3+: Phase 4 (Features) as time allows
 
 ---
 
-*Last updated: 2026-02-15*
+*Last updated: 2026-02-14*
