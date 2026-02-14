@@ -1,6 +1,10 @@
-# 🎮 Rimworld Game Master
+# 👑🦞 Shellmaster
 
 **AI-powered Game Master for Rimworld via OpenClaw Skill (MVP) → MCP (Production)**
+
+> **Tagline:** *Your Colony, Under The Claw*
+> 
+> Storyteller persona: **Lord Pincer**
 
 Let your AI assistant become a mischievous (or helpful) Game Master, triggering events, observing your colony, and adding narrative flavor to your Rimworld experience.
 
@@ -76,7 +80,7 @@ The bridge that:
 - [x] Architecture design
 - [x] API specification draft (`docs/API.md`)
 - [x] Mod implementation (HTTP server + queue + handlers)
-- [x] OpenClaw Skill MVP integration (`skills/rimworld-gm`)
+- [x] OpenClaw Skill MVP integration (`skills/rimworld-gm`, rebrand to `shellmaster` planned)
 - [x] Real-game validation (VM → SSH tunnel → Steam Deck)
 - [ ] MCP production integration
 
@@ -104,6 +108,8 @@ Copy mod folder to Rimworld mods path on Deck:
 
 ```bash
 ~/.local/share/Steam/steamapps/common/RimWorld/Mods/RimworldGM/
+
+(Workshop/public branding name: **Shellmaster**; folder rename can happen in a later release.)
 ```
 
 ### 3) Connect mode
@@ -189,6 +195,14 @@ curl -X POST http://localhost:18800/message \
 - [ ] `curl /health` returns `status: ok`
 - [ ] `curl /state` returns colony payload
 - [ ] `/message` appears in-game
+
+## 🦞 Lord Pincer Flavor (Phase 4 target)
+
+Planned narrator-style message lines:
+- "Lord Pincer has deemed your colony... adequate."
+- "The noble claw bestows a gift upon you, peasants."
+- "Lord Pincer grows bored. Prepare yourselves."
+- "Bow before the Crustacean Throne!"
 
 ## 🛠️ Tech Stack
 
