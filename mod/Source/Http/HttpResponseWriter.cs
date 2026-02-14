@@ -39,5 +39,15 @@ namespace RimworldGM.Http
         {
             WriteJson(response, 500, "{\"success\":false,\"error\":\"INTERNAL_ERROR\",\"message\":\"Internal server error\"}");
         }
+
+        public static void WriteApiError(HttpListenerResponse response, int statusCode, string error, string message)
+        {
+            var payload = "{" +
+                          "\"success\":false," +
+                          "\"error\":" + global::RimworldGM.Util.Json.Quote(error) + "," +
+                          "\"message\":" + global::RimworldGM.Util.Json.Quote(message) +
+                          "}";
+            WriteJson(response, statusCode, payload);
+        }
     }
 }
