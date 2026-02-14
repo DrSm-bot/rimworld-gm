@@ -27,7 +27,7 @@
 ---
 
 ## Phase 1: Rimworld Mod
-*Status: Complete (Ready for Integration Testing)*
+*Status: Complete ✅*
 *Estimate: 2-3 days implementation + 1 day integration testing*
 
 The game-side component that exposes colony data and accepts commands.
@@ -52,34 +52,34 @@ The game-side component that exposes colony data and accepts commands.
 
 ### 1.4 Testing
 - [x] Run `scripts/test-api.py --mock`
-- [ ] Run `scripts/test-api.py --base-url http://localhost:18800`
-- [ ] Verify thread safety under repeated event calls
-- [ ] Test during gameplay (main menu, active colony, pause/speed changes)
+- [x] Run `scripts/test-api.py --base-url http://localhost:18800`
+- [x] Verify thread safety under repeated event calls
+- [x] Test during gameplay (main menu, active colony, pause/speed changes)
 
 **Deliverable:** Working Rimworld mod that responds to HTTP requests safely
 
 ---
 
 ## Phase 2: OpenClaw Skill (MVP)
-*Status: Not Started*
+*Status: Complete ✅*
 *Estimate: 1 day*
 
 Quick integration via shell commands for rapid testing.
 
 ### 2.1 CLI Tool
-- [ ] Create `rimworld-gm` CLI (bash or Python)
-- [ ] Commands: `status`, `event <type>`, `message <text>`
-- [ ] JSON output for easy parsing
+- [x] Create `rimworld-gm` CLI (bash or Python)
+- [x] Commands: `status`, `event <type>`, `message <text>`
+- [x] JSON output for easy parsing
 
 ### 2.2 Skill Definition
-- [ ] Create `SKILL.md` with usage examples
-- [ ] Document available events
-- [ ] Add to OpenClaw skills directory
+- [x] Create `SKILL.md` with usage examples
+- [x] Document available events
+- [x] Add to OpenClaw skills directory
 
 ### 2.3 Testing
-- [ ] Test via OpenClaw: "trigger a raid in Rimworld"
-- [ ] Test state queries: "how's my colony doing?"
-- [ ] Test messaging: "send encouragement to my colonists"
+- [x] Test via OpenClaw: "trigger a raid in Rimworld"
+- [x] Test state queries: "how's my colony doing?"
+- [x] Test messaging: "send encouragement to my colonists"
 
 **Deliverable:** Working Skill that Clawd can use to interact with Rimworld
 
