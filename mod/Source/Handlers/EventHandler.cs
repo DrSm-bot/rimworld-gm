@@ -23,17 +23,17 @@ namespace RimworldGM.Handlers
                 return false;
             }
 
-            int retryAfter;
-            if (!CooldownGate.TryEnter("event:" + normalized, 30, out retryAfter))
-            {
-                error = "COOLDOWN_ACTIVE";
-                return false;
-            }
-
             var incident = ResolveIncident(normalized);
             if (incident == null)
             {
                 error = "INVALID_EVENT";
+                return false;
+            }
+
+            int retryAfter;
+            if (!CooldownGate.TryEnter("event:" + normalized, 30, out retryAfter))
+            {
+                error = "COOLDOWN_ACTIVE";
                 return false;
             }
 

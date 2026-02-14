@@ -121,6 +121,11 @@ namespace RimworldGM.Core
 
         private CommandResult BuildMessageResult(GameCommand command)
         {
+            if (Find.CurrentMap == null)
+            {
+                return CommandResult.Fail("NO_COLONY_LOADED");
+            }
+
             var text = GetArg(command, "text", string.Empty);
             var style = GetArg(command, "type", "info");
 
