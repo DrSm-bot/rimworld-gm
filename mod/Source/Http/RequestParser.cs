@@ -34,17 +34,41 @@ namespace RimworldGM.Http
             return raw == "1" || raw.Equals("true", StringComparison.OrdinalIgnoreCase);
         }
 
-        public static string ReadBody(HttpListenerRequest request)
+        public static string ReadBody(HttpListenerRequest request, int maxBytes)
         {
             if (request == null || request.InputStream == null || !request.HasEntityBody)
             {
                 return string.Empty;
             }
 
-            using (var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
+            if (maxBytes <= 0)
             {
-                return reader.ReadToEnd() ?? string.Empty;
+                maxBytes = 16384;
             }
+
+            var encoding = request.ContentEncoding ?? Encoding.UTF8;
+            var buffer = new byte[4096];
+            var ms = new MemoryStream();
+            var total = 0;
+
+            while (true)
+            {
+                var read = request.InputStream.Read(buffer, 0, buffer.Length);
+                if (read <= 0)
+                {
+                    break;
+                }
+
+                total += read;
+                if (total > maxBytes)
+                {
+                    throw new InvalidOperationException("REQUEST_BODY_TOO_LARGE");
+                }
+
+                ms.Write(buffer, 0, read);
+            }
+
+            return encoding.GetString(ms.ToArray());
         }
 
         public static string ExtractJsonString(string json, string key)

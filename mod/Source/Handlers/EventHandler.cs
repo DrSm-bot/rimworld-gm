@@ -1,3 +1,4 @@
+using RimworldGM.Config;
 using RimworldGM.Util;
 using RimWorld;
 using Verse;
@@ -30,10 +31,16 @@ namespace RimworldGM.Handlers
                 return false;
             }
 
+            if (!SettingsLoader.Current.Security.EnableDangerousEvents && IsDangerous(normalized))
+            {
+                error = "EVENT_BLOCKED";
+                return false;
+            }
+
             int retryAfter;
             if (!CooldownGate.TryEnter("event:" + normalized, 30, out retryAfter))
             {
-                error = "COOLDOWN_ACTIVE";
+                error = "RATE_LIMITED";
                 return false;
             }
 
@@ -56,6 +63,18 @@ namespace RimworldGM.Handlers
             {
                 error = "EVENT_FAILED";
                 return false;
+            }
+        }
+
+        private static bool IsDangerous(string eventType)
+        {
+            switch (eventType)
+            {
+                case "raid":
+                case "manhunter":
+                    return true;
+                default:
+                    return false;
             }
         }
 

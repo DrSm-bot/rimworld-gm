@@ -1,13 +1,10 @@
 using System;
-using Verse;
+using RimworldGM.Config;
 using RimworldGM.Http;
+using Verse;
 
 namespace RimworldGM
 {
-    /// <summary>
-    /// Main mod bootstrap for Rimworld Game Master.
-    /// Initializes and owns the HTTP server lifecycle.
-    /// </summary>
     [StaticConstructorOnStartup]
     public static class RimworldGM
     {
@@ -22,13 +19,28 @@ namespace RimworldGM
 
             try
             {
-                _server = new HttpServer(DEFAULT_PORT);
+                var settings = SettingsLoader.Load();
+
+                _server = new HttpServer(settings);
                 _server.Start();
 
                 AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
                 AppDomain.CurrentDomain.DomainUnload += OnProcessExit;
 
-                Log.Message("[RimworldGM] Ready. API available at http://localhost:" + DEFAULT_PORT);
+                if (settings.Ui.ShowStartupSummary)
+                {
+                    Log.Message("[RimworldGM] Startup: bind=" + settings.Network.BindAddress +
+                                " port=" + settings.Network.Port +
+                                " lan=" + (settings.IsLanMode ? "true" : "false") +
+                                " tokenConfigured=" + (!string.IsNullOrEmpty(settings.Network.AuthToken) ? "yes" : "no"));
+                }
+
+                if (settings.IsLanMode && settings.Ui.ShowLanWarningOnce)
+                {
+                    Log.Warning("[RimworldGM] LAN mode enabled. API is reachable from network. Keep token secret.");
+                }
+
+                Log.Message("[RimworldGM] Ready. API available at http://" + settings.Network.BindAddress + ":" + settings.Network.Port);
             }
             catch (Exception ex)
             {
