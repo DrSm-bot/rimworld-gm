@@ -1,6 +1,6 @@
 # 🎮 Rimworld Game Master
 
-**AI-powered Game Master for Rimworld via MCP (Model Context Protocol)**
+**AI-powered Game Master for Rimworld via OpenClaw Skill (MVP) → MCP (Production)**
 
 Let your AI assistant become a mischievous (or helpful) Game Master, triggering events, observing your colony, and adding narrative flavor to your Rimworld experience.
 
@@ -11,11 +11,11 @@ Let your AI assistant become a mischievous (or helpful) Game Master, triggering 
 Imagine playing Rimworld while your AI assistant watches along:
 
 > **Clawd:** "Your colony looks comfortable. Perhaps *too* comfortable..."
-> 
+>
 > *A manhunter pack of squirrels appears on the horizon*
-> 
+>
 > **You:** "CLAWD!"
-> 
+>
 > **Clawd:** "Consider it... character development. 🦞"
 
 ---
@@ -23,15 +23,15 @@ Imagine playing Rimworld while your AI assistant watches along:
 ## 🏗️ Architecture
 
 ```
-┌─────────────┐     HTTP      ┌─────────────┐     MCP      ┌─────────────┐
-│  Rimworld   │◄────────────►│ MCP Server  │◄────────────►│  OpenClaw   │
-│    Mod      │  localhost    │  (Bridge)   │              │   Agent     │
-└─────────────┘               └─────────────┘              └─────────────┘
-      │                             │                            │
-      ▼                             ▼                            ▼
- Game Events               Tool Definitions              "Trigger a raid!"
- Colony State              State Translation             "How's the colony?"
- In-Game Messages          Error Handling               "Send encouragement"
+┌─────────────┐     HTTP      ┌─────────────┐   Skill/MCP   ┌─────────────┐
+│  Rimworld   │◄────────────►│ Local API   │◄──────────────►│  OpenClaw   │
+│    Mod      │  localhost    │   Bridge    │                │   Agent     │
+└─────────────┘               └─────────────┘                └─────────────┘
+      │                             │                              │
+      ▼                             ▼                              ▼
+ Game Events                 Contract + Safety             "Trigger a raid!"
+ Colony State                Error Handling                "How's the colony?"
+ In-Game Messages            Tests                         "Send encouragement"
 ```
 
 ---
@@ -45,38 +45,41 @@ The game-side component that:
 - Accepts event commands via `/event`
 - Displays AI messages in-game via `/message`
 
-### `/mcp-server` — MCP Bridge (Python/TypeScript)
+### `/mcp-server` — MCP Bridge (Python)
 The bridge that:
 - Connects to the Rimworld mod's HTTP API
 - Exposes MCP tools for AI agents
 - Handles errors gracefully (game offline, etc.)
 
 ### `/docs` — Documentation
-Design docs, API specs, and guides.
+- `docs/RESEARCH.md` — feasibility + risks
+- `docs/API.md` — endpoint contract + status/error mapping
+- `docs/BLUEPRINT.md` — Phase-1 implementation architecture
+
+### `/scripts` — Test Utilities
+- `scripts/test-api.py` — contract checks (mock + real server)
 
 ---
 
-## 🚀 Planned Features
+## 🚀 Delivery Strategy
 
-### Phase 1: Event Triggering
-- [ ] Trigger incidents (raids, manhunters, cargo drops)
-- [ ] Environmental events (solar flare, toxic fallout)
-- [ ] Positive events (wanderer joins, cargo pod)
+1. **MVP via OpenClaw Skill** (fast iteration, prove loop)  
+2. **Production via MCP Server** (portable + future-proof)
 
-### Phase 2: State Observation
-- [ ] Read colonist info (mood, health, skills)
-- [ ] Track resources and wealth
-- [ ] Monitor threats and map conditions
+---
 
-### Phase 3: Game Master Mode
-- [ ] Narrative commentary
-- [ ] Dynamic difficulty suggestions
-- [ ] Story hooks and drama creation
+## 📋 Status
 
-### Phase 4: Interactive Play
-- [ ] Answer questions about colony state
-- [ ] Suggest strategies
-- [ ] Custom scenario creation
+**Current Phase:** 🧱 Phase 1 Prep (Docs + Blueprint + API Contract)
+
+- [x] Feasibility research (`docs/RESEARCH.md`)
+- [x] Architecture design
+- [x] API specification draft (`docs/API.md`)
+- [x] Mod scaffolding (`mod/`)
+- [x] MCP scaffolding (`mcp-server/`)
+- [ ] Phase 1 mod implementation (HTTP server + queue + handlers)
+- [ ] Skill MVP integration
+- [ ] MCP production integration
 
 ---
 
@@ -85,22 +88,8 @@ Design docs, API specs, and guides.
 | Component | Technology |
 |-----------|------------|
 | Rimworld Mod | C# / .NET 3.5 / Harmony |
-| MCP Server | Python or TypeScript |
-| Protocol | MCP (Model Context Protocol) |
-| Local Comm | HTTP REST / WebSocket |
-
----
-
-## 📋 Status
-
-**Current Phase:** 📝 Documentation & Planning
-
-- [x] Feasibility research
-- [x] Architecture design
-- [ ] API specification
-- [ ] Mod scaffolding
-- [ ] MCP server scaffolding
-- [ ] MVP implementation
+| Skill/MCP Bridge | Python |
+| Protocol | Local HTTP (MVP), MCP (Production) |
 
 ---
 
@@ -108,7 +97,7 @@ Design docs, API specs, and guides.
 
 - [Twitch Toolkit](https://github.com/hodlhodl1132/twitchtoolkit) — Inspiration and reference implementation
 - [Rimworld Modding Wiki](https://rimworldwiki.com/wiki/Modding_Tutorials) — Documentation
-- [Model Context Protocol](https://modelcontextprotocol.io/) — AI integration standard
+- [Model Context Protocol](https://modelcontextprotocol.io/) — Integration standard
 
 ---
 
