@@ -2,33 +2,95 @@
 
 ## Rimworld Mod HTTP API
 
-The mod exposes a local HTTP server on `localhost:18800`.
+The mod exposes a local HTTP server on `http://localhost:18800`.
+
+**Design constraints:**
+- HTTP listener thread must never call RimWorld APIs directly.
+- Gameplay-affecting commands are queued and executed on the main thread.
+- All JSON is UTF-8.
 
 ---
 
-## Endpoints
+## Common Conventions
 
-### `GET /health`
+### Headers
+- `Content-Type: application/json` for all `POST` requests.
 
-Health check endpoint.
+### Error Envelope
+All endpoint errors return:
 
-**Response:**
+```json
+{
+  "success": false,
+  "error": "ERROR_CODE",
+  "message": "Human-readable explanation"
+}
+```
+
+### HTTP Status Policy
+- `200 OK` — success
+- `400 Bad Request` — invalid payload/params
+- `409 Conflict` — valid request but impossible in current game state
+- `429 Too Many Requests` — cooldown/rate limit active
+- `503 Service Unavailable` — game/mod not ready
+
+---
+
+## Endpoint: `GET /health`
+
+### Purpose
+Health check and runtime readiness.
+
+### Request
+No body.
+
+### Success (`200`)
 ```json
 {
   "status": "ok",
   "game_running": true,
   "colony_loaded": true,
-  "mod_version": "0.1.0"
+  "mod_version": "0.1.0",
+  "queue_depth": 0,
+  "uptime_seconds": 123
 }
 ```
 
+### Schema (response)
+```json
+{
+  "type": "object",
+  "required": ["status", "game_running", "colony_loaded", "mod_version", "queue_depth", "uptime_seconds"],
+  "properties": {
+    "status": { "type": "string", "enum": ["ok", "degraded"] },
+    "game_running": { "type": "boolean" },
+    "colony_loaded": { "type": "boolean" },
+    "mod_version": { "type": "string" },
+    "queue_depth": { "type": "integer", "minimum": 0 },
+    "uptime_seconds": { "type": "integer", "minimum": 0 }
+  }
+}
+```
+
+### Error mapping
+| Condition | HTTP | `error` |
+|-----------|------|---------|
+| Mod not initialized yet | 503 | `MOD_NOT_READY` |
+
 ---
 
-### `GET /state`
+## Endpoint: `GET /state`
 
-Get current colony state.
+### Purpose
+Return current colony state.
 
-**Response:**
+### Query Parameters
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `include_colonists` | boolean | `true` | Include detailed colonist list |
+| `include_resources` | boolean | `true` | Include resources object |
+
+### Success (`200`)
 ```json
 {
   "colony": {
@@ -66,13 +128,52 @@ Get current colony state.
 }
 ```
 
+### Schema (response)
+```json
+{
+  "type": "object",
+  "required": ["colony", "threats"],
+  "properties": {
+    "colony": {
+      "type": "object",
+      "required": ["name", "wealth", "day", "season", "quadrum"],
+      "properties": {
+        "name": { "type": "string" },
+        "wealth": { "type": "integer", "minimum": 0 },
+        "day": { "type": "integer", "minimum": 0 },
+        "season": { "type": "string" },
+        "quadrum": { "type": "string" }
+      }
+    },
+    "colonists": { "type": "array" },
+    "resources": { "type": "object" },
+    "threats": {
+      "type": "object",
+      "required": ["active_raids", "nearby_enemies", "toxic_fallout"],
+      "properties": {
+        "active_raids": { "type": "integer", "minimum": 0 },
+        "nearby_enemies": { "type": "boolean" },
+        "toxic_fallout": { "type": "boolean" }
+      }
+    }
+  }
+}
+```
+
+### Error mapping
+| Condition | HTTP | `error` |
+|-----------|------|---------|
+| No colony/map loaded | 409 | `NO_COLONY_LOADED` |
+| Game process unavailable | 503 | `GAME_NOT_RUNNING` |
+
 ---
 
-### `POST /event`
+## Endpoint: `POST /event`
 
-Trigger a game event.
+### Purpose
+Queue and trigger a game event.
 
-**Request:**
+### Request body
 ```json
 {
   "event_type": "raid",
@@ -84,20 +185,43 @@ Trigger a game event.
 }
 ```
 
-**Supported Events:**
+### Schema (request)
+```json
+{
+  "type": "object",
+  "required": ["event_type"],
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "raid", "manhunter", "cargo_pod", "wanderer",
+        "solar_flare", "toxic_fallout", "psychic_drone",
+        "trader", "inspiration"
+      ]
+    },
+    "params": {
+      "type": "object",
+      "default": {}
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+### Supported events and params
 | Event Type | Description | Params |
 |------------|-------------|--------|
-| `raid` | Enemy raid | `faction`, `points`, `arrival_mode` |
-| `manhunter` | Manhunter pack | `animal_kind`, `count` |
-| `cargo_pod` | Cargo pod drop | `contents`, `count` |
-| `wanderer` | Wanderer joins | `pawn_kind` |
-| `solar_flare` | Solar flare | `duration_days` |
-| `toxic_fallout` | Toxic fallout | `duration_days` |
-| `psychic_drone` | Psychic drone | `gender`, `level` |
-| `trader` | Trader arrives | `trader_kind` |
-| `inspiration` | Give inspiration | `colonist`, `type` |
+| `raid` | Enemy raid | `faction?`, `points?`, `arrival_mode?` |
+| `manhunter` | Manhunter pack | `animal_kind?`, `count?` |
+| `cargo_pod` | Cargo pod drop | `contents?`, `count?` |
+| `wanderer` | Wanderer joins | `pawn_kind?` |
+| `solar_flare` | Solar flare | `duration_days?` |
+| `toxic_fallout` | Toxic fallout | `duration_days?` |
+| `psychic_drone` | Psychic drone | `gender?`, `level?` |
+| `trader` | Trader arrives | `trader_kind?` |
+| `inspiration` | Give inspiration | `colonist?`, `type?` |
 
-**Response:**
+### Success (`200`)
 ```json
 {
   "success": true,
@@ -106,13 +230,36 @@ Trigger a game event.
 }
 ```
 
+### Schema (response)
+```json
+{
+  "type": "object",
+  "required": ["success", "message"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "message": { "type": "string" },
+    "event_id": { "type": "string" }
+  }
+}
+```
+
+### Error mapping
+| Condition | HTTP | `error` |
+|-----------|------|---------|
+| Missing/invalid JSON body | 400 | `INVALID_REQUEST` |
+| Unknown event type | 400 | `INVALID_EVENT` |
+| Event blocked by cooldown | 429 | `RATE_LIMITED` |
+| Colony not in valid state for event | 409 | `EVENT_FAILED` |
+| Game unavailable | 503 | `GAME_NOT_RUNNING` |
+
 ---
 
-### `POST /message`
+## Endpoint: `POST /message`
 
+### Purpose
 Display a message in-game.
 
-**Request:**
+### Request body
 ```json
 {
   "text": "Your cook is looking stressed...",
@@ -121,124 +268,61 @@ Display a message in-game.
 }
 ```
 
-**Message Types:**
-- `info` — Neutral notification
-- `positive` — Good news (green)
-- `negative` — Bad news (red)
-- `dramatic` — Center screen dramatic text
+### Schema (request)
+```json
+{
+  "type": "object",
+  "required": ["text"],
+  "properties": {
+    "text": { "type": "string", "minLength": 1, "maxLength": 280 },
+    "type": {
+      "type": "string",
+      "enum": ["info", "positive", "negative", "dramatic"],
+      "default": "info"
+    },
+    "duration": { "type": "integer", "minimum": 1, "maximum": 30, "default": 5 }
+  },
+  "additionalProperties": false
+}
+```
 
-**Response:**
+### Success (`200`)
 ```json
 {
   "success": true
 }
 ```
 
+### Error mapping
+| Condition | HTTP | `error` |
+|-----------|------|---------|
+| Missing or empty `text` | 400 | `INVALID_REQUEST` |
+| No colony loaded | 409 | `NO_COLONY_LOADED` |
+| Game unavailable | 503 | `GAME_NOT_RUNNING` |
+
 ---
 
-## MCP Tool Definitions
+## MCP Tool Definitions (Current Bridge)
 
 ### `rimworld_get_status`
-
 Get current colony status.
 
-```json
-{
-  "name": "rimworld_get_status",
-  "description": "Get the current status of the Rimworld colony including colonists, resources, and threats",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "include_colonists": {
-        "type": "boolean",
-        "description": "Include detailed colonist info",
-        "default": true
-      },
-      "include_resources": {
-        "type": "boolean", 
-        "description": "Include resource counts",
-        "default": true
-      }
-    }
-  }
-}
-```
-
 ### `rimworld_trigger_event`
-
 Trigger a game event.
 
-```json
-{
-  "name": "rimworld_trigger_event",
-  "description": "Trigger an event in Rimworld (raids, cargo drops, weather, etc.)",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "event_type": {
-        "type": "string",
-        "enum": ["raid", "manhunter", "cargo_pod", "wanderer", "solar_flare", "toxic_fallout", "psychic_drone", "trader", "inspiration"],
-        "description": "Type of event to trigger"
-      },
-      "intensity": {
-        "type": "string",
-        "enum": ["low", "medium", "high"],
-        "description": "Event intensity/difficulty",
-        "default": "medium"
-      },
-      "target_colonist": {
-        "type": "string",
-        "description": "Target colonist name (for inspiration events)"
-      }
-    },
-    "required": ["event_type"]
-  }
-}
-```
-
 ### `rimworld_send_message`
-
 Send an in-game message.
 
-```json
-{
-  "name": "rimworld_send_message",
-  "description": "Display a message to the player in Rimworld",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "text": {
-        "type": "string",
-        "description": "Message text to display"
-      },
-      "style": {
-        "type": "string",
-        "enum": ["info", "positive", "negative", "dramatic"],
-        "default": "info"
-      }
-    },
-    "required": ["text"]
-  }
-}
-```
+(These map directly to `/state`, `/event`, `/message`.)
 
 ---
 
-## Error Handling
+## Canonical Error Codes
 
-All endpoints return errors in this format:
-
-```json
-{
-  "success": false,
-  "error": "GAME_NOT_RUNNING",
-  "message": "Rimworld is not currently running"
-}
-```
-
-**Error Codes:**
+- `MOD_NOT_READY` — Mod initialized but HTTP layer not ready
 - `GAME_NOT_RUNNING` — Game executable not detected
-- `NO_COLONY_LOADED` — No save game loaded
-- `INVALID_EVENT` — Unknown event type
-- `EVENT_FAILED` — Event could not be triggered (conditions not met)
-- `RATE_LIMITED` — Too many requests (cooldown active)
+- `NO_COLONY_LOADED` — No save game loaded / no active map
+- `INVALID_REQUEST` — Payload validation failed
+- `INVALID_EVENT` — Unknown or unsupported event type
+- `EVENT_FAILED` — Event could not execute in current game conditions
+- `RATE_LIMITED` — Cooldown active / too many requests

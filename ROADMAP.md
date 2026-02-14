@@ -2,8 +2,16 @@
 
 ## Strategy: Skill → MCP
 
-**MVP via OpenClaw Skill** (fast iteration, proof of concept)
+**MVP via OpenClaw Skill** (fast iteration, proof of concept)  
 **Production via MCP Server** (universal, future-proof)
+
+---
+
+## Project Docs
+
+- Feasibility: `docs/RESEARCH.md`
+- API Contract: `docs/API.md`
+- Phase-1 Architecture Blueprint: `docs/BLUEPRINT.md`
 
 ---
 
@@ -12,25 +20,26 @@
 
 - [x] Feasibility research
 - [x] Architecture design
-- [x] API specification
+- [x] API specification (draft)
 - [x] Repository setup
 - [x] Basic scaffolding
 
 ---
 
 ## Phase 1: Rimworld Mod
-*Status: Not Started*
-*Estimate: 2-3 days*
+*Status: In Preparation*
+*Estimate: 2-3 days implementation + 1 day integration testing*
 
 The game-side component that exposes colony data and accepts commands.
 
-### 1.1 HTTP Server
+### 1.1 HTTP Server + Dispatch
 - [ ] Implement `HttpListener` on port 18800
-- [ ] Handle requests on main Unity thread (thread safety)
+- [ ] Parse and validate request payloads
+- [ ] Queue commands for main-thread execution (`CommandDispatcher`)
 - [ ] Graceful startup/shutdown
 
 ### 1.2 Endpoints
-- [ ] `GET /health` — Health check
+- [ ] `GET /health` — Health check + queue stats
 - [ ] `GET /state` — Colony status (colonists, resources, threats)
 - [ ] `POST /event` — Trigger incidents
 - [ ] `POST /message` — Display in-game messages
@@ -42,11 +51,12 @@ The game-side component that exposes colony data and accepts commands.
 - [ ] Add cooldowns to prevent spam
 
 ### 1.4 Testing
-- [ ] Test with curl/Postman
-- [ ] Verify thread safety
-- [ ] Test during gameplay (raids, menus, etc.)
+- [ ] Run `scripts/test-api.py --mock`
+- [ ] Run `scripts/test-api.py --base-url http://localhost:18800`
+- [ ] Verify thread safety under repeated event calls
+- [ ] Test during gameplay (main menu, active colony, pause/speed changes)
 
-**Deliverable:** Working Rimworld mod that responds to HTTP requests
+**Deliverable:** Working Rimworld mod that responds to HTTP requests safely
 
 ---
 
@@ -170,4 +180,4 @@ Week 3+: Phase 4 (Features) as time allows
 
 ---
 
-*Last updated: 2026-02-14*
+*Last updated: 2026-02-15*
